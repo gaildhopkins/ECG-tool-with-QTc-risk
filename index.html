@@ -239,11 +239,13 @@ const EDU = {
     title: 'About rhythm assessment',
     sections: [
       { title: 'Normal sinus rhythm criteria (all must be met)', list: [
-        'P wave precedes every QRS complex.',
-        'P wave upright in lead I (right-to-left propagation from SA node).',
-        'P wave upright in lead aVF (superior-to-inferior propagation).',
-        'Regular QRS spacing (rate 60–100 bpm).',
-        'Best leads to identify P waves: II and V1.',
+        'P wave present before every QRS complex in a 1:1 ratio.',
+        'P wave positive (upright) in leads I, II, and aVF.',
+        'P wave negative in lead aVR.',
+        'P wave in aVL may be positive, negative, or biphasic — all are normal.',
+        'P wave in V1 may be biphasic (+/–) — this is normal.',
+        'This P wave axis (+50° to +80°) confirms origin from the SA node in the right superior atrium.',
+        'Tip: leads II and V1 are the best leads to spot P waves, but morphology must be confirmed across I, II, aVF, and aVR.',
       ]},
       { title: 'Rhythm classification', table: [
         ['Regular','Equal R-R spacing','NSR, sinus tachy/brady'],
@@ -446,12 +448,12 @@ const STEPS = [
           {v:'irreg_irreg', l:'Irregularly irregular — completely erratic, no pattern', cls:'bad'},
         ]
       },
-      { id:'p_waves', type:'choice', label:'P wave assessment (check leads II and V1)',
-        hint:'For NSR: every QRS preceded by a P wave; P upright in lead I (right→left propagation) and in aVF (superior→inferior). Lead V1 often shows biphasic P waves — good for detecting atrial abnormality.',
+      { id:'p_waves', type:'choice', label:'P wave morphology (assess leads I, II, aVF, and aVR)',
+        hint:'Sinus rhythm requires P waves positive in leads I, II, and aVF; negative in aVR. This confirms a P vector of +50° to +80° originating from the SA node. Lead V1 may be biphasic (+/–) normally. Leads II and V1 are the best leads to spot P waves, but morphology is confirmed in I, II, aVF, and aVR.',
         options:[
-          {v:'normal', l:'Present, upright in I and aVF, 1:1 with QRS — normal sinus origin', cls:'normal'},
+          {v:'normal', l:'Upright in I, II, and aVF; negative in aVR — 1:1 with QRS — normal sinus origin', cls:'normal'},
           {v:'absent', l:'Absent or disorganised fibrillatory baseline', cls:'bad'},
-          {v:'abnormal_morph', l:'Present but inverted, biphasic, or abnormal axis', cls:'warn'},
+          {v:'abnormal_morph', l:'Present but not meeting sinus criteria (e.g. inverted in II or aVF, upright in aVR)', cls:'warn'},
           {v:'dissociated', l:'Present but dissociated from QRS complexes', cls:'bad'},
         ]
       }
@@ -491,6 +493,16 @@ const STEPS = [
   {
     id:'intervals', num:4, title:'Intervals', sub:'Timing of electrical conduction',
     questions:[
+      { id:'qrs_width2', type:'number', label:'QRS duration', unit:'ms',
+        hint:'Count small boxes in the widest QRS in any lead × 40 ms. Normal < 120 ms. Values 100–119 ms = incomplete BBB. ≥ 120 ms = complete BBB or ventricular origin.',
+        compute: v => {
+          const n=parseInt(v); if(isNaN(n)||n<=0) return null;
+          if(n<100) return {label:`${n} ms — narrow, normal conduction`,flag:'ok'};
+          if(n<120) return {label:`${n} ms — borderline / incomplete BBB`,flag:'warn'};
+          if(n<160) return {label:`${n} ms — wide QRS, complete BBB pattern`,flag:'bad'};
+          return {label:`${n} ms — very wide (> 160 ms), suspect VT`,flag:'bad'};
+        }
+      },
       { id:'pr', type:'number', label:'PR interval', unit:'ms',
         hint:'Measured from the start of the P wave to the start of the QRS complex. Use the lead with the most visible P wave onset. Normal 120–200 ms. Also assess: does every P conduct? Does the PR change beat to beat?',
         compute: v => {
@@ -702,11 +714,11 @@ function renderReport() {
   const rv=state.answers['rate_val']; if(rv){const r=STEPS[0].questions[0].compute(rv);if(r) findings.push({step:'Rate',label:r.label,flag:r.flag});}
   const rr=getRhythmResult(); if(rr) findings.push({step:'Rhythm',label:rr.label,flag:rr.flag});
   const ax=getAxisResult(); if(ax) findings.push({step:'Axis',label:ax.label,flag:ax.flag});
-  const qw=state.answers['qrs_width']; if(qw){const r=STEPS[2].questions[2].compute(qw);if(r) findings.push({step:'QRS',label:r.label,flag:r.flag});}
-  const pr=state.answers['pr']; if(pr){const r=STEPS[3].questions[0].compute(pr);if(r) findings.push({step:'PR',label:r.label,flag:r.flag});}
+  const qw=state.answers['qrs_width2']; if(qw){const r=STEPS[3].questions[0].compute(qw);if(r) findings.push({step:'QRS',label:r.label,flag:r.flag});}
+  const pr=state.answers['pr']; if(pr){const r=STEPS[3].questions[1].compute(pr);if(r) findings.push({step:'PR',label:r.label,flag:r.flag});}
   const avp=state.answers['av_pattern'];
   if(avp&&avp!=='one_to_one'){const m={mobitz1:'Mobitz I (Wenckebach) 2° AV block',mobitz2:'Mobitz II — high-grade 2° AV block',complete:'Complete AV block — pacemaker required'};if(m[avp]) findings.push({step:'AV conduction',label:m[avp],flag:avp==='mobitz1'?'warn':'bad'});}
-  const qtc=state.answers['qtc']; if(qtc){const r=STEPS[3].questions[2].compute(qtc);if(r) findings.push({step:'QTc',label:r.label,flag:r.flag});}
+  const qtc=state.answers['qtc']; if(qtc){const r=STEPS[3].questions[3].compute(qtc);if(r) findings.push({step:'QTc',label:r.label,flag:r.flag});}
   const st=getSTResult(); if(st) findings.push({step:'ST segment',label:st.label,flag:st.flag});
   const cn=state.answers['cornell']; if(cn){const r=STEPS[5].questions[0].compute(cn);if(r&&r.flag!=='ok') findings.push({step:'Cornell',label:r.label,flag:r.flag});}
   const sk=state.answers['sokolow']; if(sk){const r=STEPS[5].questions[1].compute(sk);if(r&&r.flag!=='ok') findings.push({step:'Sokolow',label:r.label,flag:r.flag});}
