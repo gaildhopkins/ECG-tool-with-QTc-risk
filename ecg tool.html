@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECG Interpretation Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#f7f6f2;--surface:#ffffff;--surface2:#f0efe9;--border:rgba(0,0,0,0.10);--border-med:rgba(0,0,0,0.18);
+    --text:#1a1917;--text-muted:#6b6a65;--text-hint:#9b9a94;
+    --blue:#1a56a0;--blue-bg:#e8f0fb;--blue-border:#a8c4ef;
+    --green:#1a6b3c;--green-bg:#e6f5ee;--green-border:#8ecfaa;
+    --amber:#7a4a00;--amber-bg:#fdf3e0;--amber-border:#f0c46a;
+    --red:#8b1a1a;--red-bg:#fdeaea;--red-border:#f0a0a0;
+    --radius:8px;--radius-lg:14px;--mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{--bg:#131210;--surface:#1e1d1a;--surface2:#272520;--border:rgba(255,255,255,0.10);--border-med:rgba(255,255,255,0.18);--text:#eeece6;--text-muted:#9b9a94;--text-hint:#6b6a65;--blue:#7aadee;--blue-bg:#0d1f3a;--blue-border:#2a4f7a;--green:#5cc989;--green-bg:#0d2a1c;--green-border:#1e5a35;--amber:#f0c46a;--amber-bg:#2a1e08;--amber-border:#5a3e10;--red:#f08080;--red-bg:#2a0d0d;--red-border:#5a1e1e;}
+  }
+  html{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15px;line-height:1.6}
+  body{min-height:100vh;padding:0}
+  .layout{max-width:740px;margin:0 auto;padding:2rem 1.5rem 4rem}
+  header{margin-bottom:2rem;padding-bottom:1.25rem;border-bottom:0.5px solid var(--border-med)}
+  .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+  .header-title{font-size:21px;font-weight:500;letter-spacing:-0.02em}
+  .header-title span{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--text-hint);display:block;margin-top:3px}
+  .reset-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;font-size:13px;font-family:var(--sans);border:0.5px solid var(--border-med);border-radius:var(--radius);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s}
+  .reset-btn:hover{background:var(--surface2);color:var(--text)}
+  .progress{display:flex;gap:5px;margin-bottom:1.5rem;flex-wrap:wrap}
+  .prog-pill{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:11px;font-family:var(--mono);font-weight:500;border:0.5px solid var(--border);background:var(--surface2);color:var(--text-hint);cursor:pointer;transition:all 0.15s;white-space:nowrap}
+  .prog-pill:hover{border-color:var(--border-med);color:var(--text-muted)}
+  .prog-pill.active{background:var(--surface);border-color:var(--border-med);color:var(--text)}
+  .prog-pill.done{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+  .prog-pill.report.active{border-color:var(--blue-border);background:var(--blue-bg);color:var(--blue)}
+  .step-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+  .step-head{padding:1.1rem 1.4rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px}
+  .step-num{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:500;flex-shrink:0}
+  .step-info h2{font-size:15px;font-weight:500;letter-spacing:-0.01em}
+  .step-info p{font-size:12px;color:var(--text-muted);margin-top:1px}
+  .step-body{padding:1.1rem 1.4rem}
+
+  /* Education panel */
+  .edu-panel{background:var(--surface2);border-radius:var(--radius);padding:0;margin-bottom:1.25rem;border:0.5px solid var(--border);overflow:hidden}
+  .edu-toggle{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text-muted)}
+  .edu-toggle:hover{color:var(--text)}
+  .edu-toggle .edu-label{display:flex;align-items:center;gap:7px}
+  .edu-toggle i{font-size:14px;color:var(--blue)}
+  .edu-toggle .chevron{font-size:13px;transition:transform 0.2s;flex-shrink:0}
+  .edu-toggle.open .chevron{transform:rotate(180deg)}
+  .edu-content{display:none;padding:0 14px 12px;border-top:0.5px solid var(--border)}
+  .edu-content.open{display:block}
+  .edu-section{margin-top:10px}
+  .edu-section-title{font-size:11px;font-family:var(--mono);font-weight:500;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
+  .edu-text{font-size:13px;color:var(--text-muted);line-height:1.65}
+  .edu-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+  .edu-cell{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 10px}
+  .edu-cell .ec-label{font-size:11px;font-family:var(--mono);color:var(--text-hint);margin-bottom:3px}
+  .edu-cell .ec-val{font-size:13px;font-weight:500;color:var(--text)}
+  .edu-cell .ec-sub{font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4}
+  .edu-list{margin-top:6px;padding-left:0;list-style:none}
+  .edu-list li{font-size:13px;color:var(--text-muted);padding:3px 0 3px 16px;position:relative;line-height:1.5}
+  .edu-list li::before{content:"–";position:absolute;left:0;color:var(--text-hint)}
+  .edu-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  .edu-table th{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.04em;padding:4px 8px;border-bottom:0.5px solid var(--border);text-align:left}
+  .edu-table td{padding:5px 8px;border-bottom:0.5px solid var(--border);color:var(--text-muted);vertical-align:top}
+  .edu-table td:first-child{color:var(--text);font-weight:500;white-space:nowrap;padding-right:12px}
+  .edu-table tr:last-child td{border-bottom:none}
+
+  .q-block{margin-bottom:1.25rem}
+  .q-label{font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:0.5rem;font-family:var(--mono);letter-spacing:0.01em}
+  .opts{display:flex;flex-direction:column;gap:5px}
+  .opt{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;transition:all 0.12s;text-align:left;width:100%;font-family:var(--sans);gap:8px}
+  .opt:hover{border-color:var(--border-med);background:var(--surface)}
+  .opt.sel-normal{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+  .opt.sel-warn{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+  .opt.sel-bad{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+  .opt i{font-size:14px;flex-shrink:0}
+  .num-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .num-input{padding:8px 12px;border:0.5px solid var(--border-med);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:14px;font-family:var(--mono);width:90px;transition:all 0.12s}
+  .num-input:focus{outline:none;border-color:var(--blue);background:var(--surface);box-shadow:0 0 0 3px var(--blue-bg)}
+  .num-unit{font-size:12px;color:var(--text-hint);font-family:var(--mono)}
+  .num-result{display:flex;align-items:center;gap:5px;font-size:12px;font-family:var(--mono);padding:4px 10px;border-radius:20px;font-weight:500}
+  .res-normal{background:var(--green-bg);color:var(--green);border:0.5px solid var(--green-border)}
+  .res-warn{background:var(--amber-bg);color:var(--amber);border:0.5px solid var(--amber-border)}
+  .res-bad{background:var(--red-bg);color:var(--red);border:0.5px solid var(--red-border)}
+  .hint{font-size:12px;color:var(--text-hint);line-height:1.6;margin-top:7px;padding:8px 11px;border-left:2px solid var(--border-med);background:var(--surface2);border-radius:0 var(--radius) var(--radius) 0}
+  .clinical-note{font-size:12px;line-height:1.6;margin-top:7px;padding:9px 13px;border-left:2px solid var(--red);background:var(--red-bg);color:var(--red);border-radius:0 var(--radius) var(--radius) 0}
+  .clinical-note-warn{border-left-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+  .nav{display:flex;align-items:center;gap:8px;margin-top:1.25rem}
+  .nav .spacer{flex:1}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 17px;font-size:13px;font-family:var(--sans);border:0.5px solid var(--border-med);border-radius:var(--radius);background:transparent;color:var(--text);cursor:pointer;transition:all 0.15s}
+  .btn:hover{background:var(--surface2)}
+  .btn:disabled{opacity:0.35;cursor:not-allowed}
+  .btn-primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+  .btn-primary:hover{opacity:0.85;background:var(--text)}
+  .btn-success{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+  .btn-success:hover{opacity:0.85}
+  .verdict{display:flex;align-items:center;gap:10px;padding:12px 15px;border-radius:var(--radius);font-size:13px;font-weight:500;margin-bottom:1.1rem;border:0.5px solid}
+  .verdict-ok{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+  .verdict-warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+  .verdict-bad{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+  .verdict i{font-size:18px;flex-shrink:0}
+  .finding-group{margin-bottom:0.9rem}
+  .finding-group-title{font-size:11px;font-family:var(--mono);font-weight:500;color:var(--text-hint);margin-bottom:6px;letter-spacing:0.06em;text-transform:uppercase}
+  .finding-row{display:flex;align-items:baseline;gap:10px;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+  .finding-row:last-child{border-bottom:none}
+  .finding-step{font-family:var(--mono);font-size:11px;color:var(--text-hint);width:95px;flex-shrink:0}
+  .finding-label{flex:1;color:var(--text)}
+  .finding-label.bad{color:var(--red)}
+  .finding-label.warn{color:var(--amber)}
+  .finding-label.ok{color:var(--green)}
+  .disclaimer{font-size:11px;color:var(--text-hint);line-height:1.7;margin-top:1.1rem;padding-top:0.9rem;border-top:0.5px solid var(--border)}
+  footer{margin-top:2.5rem;padding-top:1rem;border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  footer span{font-size:11px;color:var(--text-hint);font-family:var(--mono)}
+  /* Mode tabs */
+  .mode-tabs{display:flex;gap:0;margin-bottom:1.5rem;background:var(--surface2);border-radius:var(--radius-lg);padding:4px;border:0.5px solid var(--border)}
+  .mode-tab{flex:1;text-align:center;padding:8px 12px;border-radius:11px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-muted);border:none;background:transparent;font-family:var(--sans);transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+  .mode-tab:hover{color:var(--text)}
+  .mode-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+  .mode-tab i{font-size:14px}
+
+  /* QTc tool */
+  .qtc-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1rem}
+  .qtc-head{padding:1rem 1.4rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px}
+  .qtc-head-icon{width:30px;height:30px;border-radius:50%;background:var(--amber-bg);color:var(--amber);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+  .qtc-body{padding:1.1rem 1.4rem}
+  .qtc-section{margin-bottom:1.5rem}
+  .qtc-section:last-child{margin-bottom:0}
+  .qtc-section-title{font-size:11px;font-family:var(--mono);font-weight:500;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .qtc-section-title i{font-size:13px;color:var(--blue)}
+
+  /* Tisdale score items */
+  .tisdale-grid{display:flex;flex-direction:column;gap:6px}
+  .tisdale-item{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface2);cursor:pointer;transition:all 0.12s;gap:10px;font-family:var(--sans);font-size:13px;color:var(--text);width:100%;text-align:left}
+  .tisdale-item:hover{border-color:var(--border-med);background:var(--surface)}
+  .tisdale-item.checked{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+  .tisdale-item .ti-label{flex:1;line-height:1.4}
+  .tisdale-item .ti-pts{font-family:var(--mono);font-size:12px;font-weight:500;padding:2px 8px;border-radius:12px;background:var(--surface);border:0.5px solid var(--border);white-space:nowrap;flex-shrink:0}
+  .tisdale-item.checked .ti-pts{background:var(--amber);color:#fff;border-color:var(--amber)}
+
+  /* Score display */
+  .score-display{border-radius:var(--radius-lg);padding:1.1rem 1.4rem;border:0.5px solid var(--border);margin-bottom:1rem;display:flex;align-items:center;gap:16px}
+  .score-num{font-size:40px;font-weight:500;font-family:var(--mono);line-height:1;flex-shrink:0}
+  .score-info{}
+  .score-cat{font-size:14px;font-weight:500;margin-bottom:3px}
+  .score-sub{font-size:12px;color:var(--text-muted);line-height:1.5}
+  .score-low{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+  .score-mod{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+  .score-high{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+
+  /* QTc thresholds table */
+  .qtc-thresh{width:100%;border-collapse:collapse;font-size:13px}
+  .qtc-thresh th{font-family:var(--mono);font-size:11px;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.04em;padding:6px 10px;border-bottom:0.5px solid var(--border);text-align:left;font-weight:500}
+  .qtc-thresh td{padding:7px 10px;border-bottom:0.5px solid var(--border);color:var(--text-muted);vertical-align:middle}
+  .qtc-thresh tr:last-child td{border-bottom:none}
+  .qtc-thresh td:first-child{color:var(--text);font-weight:500}
+  .qtc-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:12px;font-weight:500;font-family:var(--mono)}
+  .qtc-badge-ok{background:var(--green-bg);color:var(--green)}
+  .qtc-badge-warn{background:var(--amber-bg);color:var(--amber)}
+  .qtc-badge-bad{background:var(--red-bg);color:var(--red)}
+
+  /* Drug class risk table */
+  .drug-table{width:100%;border-collapse:collapse;font-size:12px}
+  .drug-table th{font-family:var(--mono);font-size:10px;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.04em;padding:5px 8px;border-bottom:0.5px solid var(--border);text-align:left}
+  .drug-table td{padding:5px 8px;border-bottom:0.5px solid var(--border);color:var(--text-muted);vertical-align:top;line-height:1.4}
+  .drug-table tr:last-child td{border-bottom:none}
+  .drug-table td:first-child{color:var(--text);font-weight:500;white-space:nowrap}
+  .risk-high{color:var(--red);font-weight:500}
+  .risk-low{color:var(--amber)}
+  .risk-min{color:var(--green)}
+
+  /* Action boxes */
+  .action-box{padding:10px 13px;border-radius:var(--radius);font-size:13px;line-height:1.6;margin-top:8px;border-left:2px solid}
+  .action-box-bad{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+  .action-box-warn{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+  .action-box-ok{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+  .action-box-blue{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+
+  @media(max-width:520px){.layout{padding:1rem 1rem 3rem}.progress{gap:4px}.prog-pill{font-size:10px;padding:4px 9px}.step-head,.step-body{padding:0.9rem 1rem}.edu-grid{grid-template-columns:1fr}.mode-tab{font-size:12px;padding:7px 8px}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <header>
+    <div class="header-top">
+      <div class="header-title">ECG Interpretation Tool
+        <span>systematic 6-step analysis · for pharmacists &amp; clinicians</span>
+      </div>
+      <button class="reset-btn" onclick="resetAll()"><i class="ti ti-refresh"></i> Reset</button>
+    </div>
+  </header>
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tab-ecg" onclick="switchMode('ecg')"><i class="ti ti-heart-rate-monitor"></i> ECG Interpreter</button>
+    <button class="mode-tab" id="tab-qtc" onclick="switchMode('qtc')"><i class="ti ti-alert-triangle"></i> QTc Risk Tool</button>
+  </div>
+  <div id="ecg-mode">
+    <div class="progress" id="progress"></div>
+    <div id="main"></div>
+  </div>
+  <div id="qtc-mode" style="display:none">
+    <div id="qtc-main"></div>
+  </div>
+  <footer>
+    <span>Mar et al., Am J Health-Syst Pharm 2021;78:850–861</span>
+    <span>Braunwald's Heart Disease, 11th ed.</span>
+    <span>educational use only</span>
+  </footer>
+</div>
+
+<script>
+/* ── Education content (Braunwald-enriched) ── */
+const EDU = {
+  rate: {
+    title: 'About rate assessment',
+    sections: [
+      { title: 'Grid calibration', text: 'The standard ECG runs at 25 mm/s. Each small box = 40 ms; each large box (5 small) = 200 ms. Vertically, each small box = 0.1 mV; each large box = 0.5 mV. The entire strip spans 10 seconds.' },
+      { title: 'Quick calculation methods', grid: [
+        { label:'Irregular rhythm', val:'Count all QRS in 10 s × 6', sub:'Best when spacing varies (e.g. AF, frequent ectopics)' },
+        { label:'Regular rhythm', val:'300 ÷ large boxes between QRS', sub:'Quick mental estimate for regular rhythms' },
+        { label:'Precise (regular)', val:'1500 ÷ small boxes between QRS', sub:'More accurate when R-R is nearly a whole number' },
+      ]},
+      { title: 'Quick reference', table: [
+        ['2 large boxes','150 bpm'],['3 large boxes','100 bpm'],['4 large boxes','75 bpm'],['5 large boxes','60 bpm'],['6 large boxes','50 bpm']
+      ]},
+      { title: 'Clinical significance', list: [
+        'Normal 60–100 bpm. Tachycardia > 100 bpm; bradycardia < 60 bpm.',
+        'Sinus tachycardia (100–180 bpm) is usually a secondary response to physiologic stress, fever, hypovolaemia, anaemia, or drugs — treat the cause.',
+        'Very fast rates (> 150 bpm) should prompt consideration of SVT, AF with rapid ventricular response, or atrial flutter with 2:1 block.',
+        'Extreme bradycardia (< 40 bpm) or complete AV block requires immediate assessment for haemodynamic compromise.'
+      ]}
+    ]
+  },
+  rhythm: {
+    title: 'About rhythm assessment',
+    sections: [
+      { title: 'Normal sinus rhythm criteria (all must be met)', list: [
+        'P wave present before every QRS complex in a 1:1 ratio.',
+        'P wave positive (upright) in leads I, II, and aVF.',
+        'P wave negative in lead aVR.',
+        'P wave in aVL may be positive, negative, or biphasic — all are normal.',
+        'P wave in V1 may be biphasic (+/–) — this is normal.',
+        'This P wave axis (+50° to +80°) confirms origin from the SA node in the right superior atrium.',
+        'Tip: leads II and V1 are the best leads to spot P waves, but morphology must be confirmed across I, II, aVF, and aVR.',
+      ]},
+      { title: 'Rhythm classification', table: [
+        ['Regular','Equal R-R spacing','NSR, sinus tachy/brady'],
+        ['Irregularly regular','Mostly regular, unpredictable breaks','PACs, PVCs, sinus arrhythmia'],
+        ['Regularly irregular','Irregular but in a repeating pattern','PVC bigeminy/trigeminy'],
+        ['Irregularly irregular','Completely erratic — no pattern','Atrial fibrillation, AF with PVCs'],
+      ]},
+      { title: 'Atrial fibrillation', text: 'AF is the most common sustained arrhythmia. The atria depolarise chaotically at 350–600 impulses/min. The AV node acts as a gatekeeper — only some impulses conduct to the ventricles, producing the characteristically erratic ventricular rate. ECG hallmark: absent organised P waves replaced by irregular fibrillatory baseline; irregularly irregular QRS. Ventricular rate < 100 bpm = controlled AF; ≥ 100 bpm = uncontrolled AF.' },
+      { title: 'P wave morphology clues', list: [
+        'Inverted P in lead I → activation originating in the left atrium.',
+        'Inverted P in inferior leads (II, III, aVF) → low atrial or junctional pacemaker.',
+        'Biphasic P in V1 with large terminal negative component (> 0.04 mm·s) → left atrial abnormality ("P mitrale").',
+        'Tall peaked P > 0.25 mV in lead II → right atrial abnormality ("P pulmonale").',
+        'Wide, notched P in lead II with interpeak interval > 0.40 ms → left atrial abnormality.',
+      ]}
+    ]
+  },
+  axis: {
+    title: 'About axis and QRS morphology',
+    sections: [
+      { title: 'The hexaxial reference system', text: 'The six frontal-plane leads divide the frontal plane into 30° segments. Lead I is at 0°; aVF at +90°; lead II at +60°. A clockwise direction from lead I is positive (0° to +180°); counterclockwise is negative (0° to –180°). Normal adult mean QRS axis lies between –30° and +90°.' },
+      { title: 'Axis interpretation (leads I and aVF)', grid: [
+        { label:'Normal', val:'Both ↑ (positive)', sub:'–30° to +90°' },
+        { label:'Left axis deviation', val:'I ↑, aVF ↓', sub:'< –30°. Consider LBBB, inferior MI, left anterior fascicular block, LVH.' },
+        { label:'Right axis deviation', val:'I ↓, aVF ↑', sub:'> +90°. Consider RVH, PE, lateral MI, left posterior fascicular block, RBBB.' },
+        { label:'Extreme deviation', val:'Both ↓', sub:'–90° to ±180°. Consider severe disease, technical error, dextrocardia.' },
+      ]},
+      { title: 'QRS width and conduction', text: 'Normal ventricular activation travels rapidly through the His-Purkinje system (HPS), producing a narrow QRS (< 120 ms). When one bundle branch is blocked or bypassed, myocyte-to-myocyte spread replaces rapid HPS conduction, widening the QRS to ≥ 120 ms.' },
+      { title: 'Bundle branch block patterns', table: [
+        ['RBBB','rSR\' or RSR\' in V1 (rabbit ears); wide S in I, aVL, V5–V6; T wave inversion in V1–V2.','Usually benign but may indicate RV pressure load or ischaemia.'],
+        ['LBBB','Broad notched R in I, aVL, V5–V6; absent septal q waves; broad QS in V1–V2; T wave discordant.','Significant: associated with LV dysfunction, HF, ↑ mortality. Obscures ischaemia detection.'],
+        ['LAFB','Left axis < –45°; rS in II, III, aVF; qR in I and aVL; QRS < 120 ms.','Common cause of left axis deviation.'],
+        ['LPFB','Right axis > +90°; rS in I, aVL; qR in II, III, aVF; QRS < 120 ms; must exclude other causes.','Rare; usually seen with RBBB.'],
+      ]},
+      { title: 'Wide QRS tachycardia', text: 'Not all wide QRS tachycardia (WCT) is ventricular tachycardia (VT). Supraventricular causes include baseline BBB, rate-dependent (aberrant) conduction, or pre-excitation (WPW). VT is suggested by: AV dissociation, positive or negative concordance across precordial leads, QRS > 160 ms, fusion or capture beats, northwest axis (up in aVR, down in I and aVF). When in doubt, treat as VT.' }
+    ]
+  },
+  intervals: {
+    title: 'About ECG intervals',
+    sections: [
+      { title: 'PR interval physiology', text: 'The PR interval includes the P wave (atrial depolarisation) plus the PR segment (conduction delay in the AV node and His-Purkinje system). It normally measures 120–200 ms. The AV node introduces most of the delay, ensuring ventricular filling is complete before ejection.' },
+      { title: 'AV block classification', table: [
+        ['1° AV block','PR > 200 ms, constant; 1:1 conduction maintained','Usually benign; monitor. May be caused by vagal tone, inferior MI, digoxin, beta-blockers.'],
+        ['2° Mobitz I (Wenckebach)','Progressive PR lengthening until a beat is dropped; shortest PR after the dropped beat','Generally benign. Often vagal or inferior MI. The longest PR is just before the dropped beat.'],
+        ['2° Mobitz II','Fixed PR interval; sudden dropped beats without warning','High-grade; unpredictable. Usually requires permanent pacemaker.'],
+        ['3° (Complete)','Complete AV dissociation; P and QRS fully independent; slow escape rhythm','Medical emergency. Permanent pacemaker required.'],
+      ]},
+      { title: 'QRS interval', text: 'Measures ventricular activation time. Normal < 120 ms. Values of 100–119 ms = incomplete BBB (morphology resembles BBB but does not fully meet criteria). Values ≥ 120 ms = complete BBB or ventricular origin.' },
+      { title: 'QT interval and QTc', text: 'The QT interval spans from the onset of the QRS to the end of the T wave, representing total ventricular depolarisation and repolarisation. It is rate-dependent, so the corrected value (QTc) is used clinically. The Bazett formula (QTc = QT / √RR) is most widely used but overcorrects at high rates. The linear formula QTc = QT + 1.75 × (HR − 60) is less rate-sensitive. Normal QTc: 390–450 ms (men); up to 460 ms (women); lower limit 390 ms.' },
+      { title: 'QTc — pharmacist focus', list: [
+        'Prolonged QTc creates the substrate for early afterdepolarisations (EADs) → Torsades de Pointes (TdP) → VF → sudden cardiac death.',
+        'A 50 ms increase in QT interval is associated with ~20% increased risk of all-cause mortality.',
+        'High-risk drug classes: Class Ia antiarrhythmics (quinidine, procainamide), Class III (amiodarone, sotalol, dofetilide, ibutilide), antipsychotics (haloperidol, ziprasidone, quetiapine), fluoroquinolones, azithromycin, methadone, ondansetron.',
+        'Risk is amplified by: hypokalaemia, hypomagnesaemia, bradycardia, female sex, congenital long QT, polypharmacy with multiple QT-prolonging agents.',
+        'Automated QTc can be spuriously elevated if peaked T waves are miscounted as QRS complexes — always verify manually when the result seems implausible.',
+        'Always check crediblemeds.org (AZ CERT) for drug-specific risk classification.',
+      ]}
+    ]
+  },
+  st: {
+    title: 'About ST changes and repolarisation',
+    sections: [
+      { title: 'Physiology of ST changes', text: 'Under normal conditions, the ST segment is isoelectric because all ventricular cells are uniformly depolarised during the plateau phase (phase 2) of the action potential. Ischaemia alters the resting membrane potential and action potential characteristics of affected cells, creating voltage gradients between ischaemic and normal myocardium. These injury currents are recorded as ST deviation on the surface ECG. Two mechanisms operate: diastolic injury current (TQ segment depression → apparent ST elevation) and systolic injury current (phase 2 shortening in ischaemic cells → primary ST elevation).' },
+      { title: 'ST elevation thresholds (≥ 2 contiguous leads)', table: [
+        ['Men > 40 y','V2–V3: > 0.2 mV; all other leads: > 0.1 mV'],
+        ['Men < 40 y','V2–V3: > 0.25 mV; all other leads: > 0.1 mV'],
+        ['Women (all)','V2–V3: > 0.15 mV; all other leads: > 0.1 mV'],
+        ['ST depression','Horizontal or downsloping ≥ 0.05 mV in ≥ 2 contiguous leads'],
+        ['T-wave inversion','> 0.1 mV in ≥ 2 contiguous leads with prominent R wave'],
+      ]},
+      { title: 'Coronary territories', grid: [
+        { label:'Inferior (II, III, aVF)', val:'RCA (90%) or LCx (10%)', sub:'Inferior wall LV. Inferior STEMI: check V1 (RBBB, AV block) and RV leads (R-sided ST elevation).' },
+        { label:'Anterior/septal (V1–V4)', val:'LAD', sub:'Anterior LV + septum. Large territory — often haemodynamically significant.' },
+        { label:'Lateral (I, aVL, V5–V6)', val:'LCx', sub:'Lateral LV. High lateral (I, aVL) often isolated, may have reciprocal inferior depression.' },
+        { label:'Posterior (V1–V2)', val:'RCA or LCx', sub:'Tall R waves + ST depression in V1–V2 = posterior STEMI mirror image. Use posterior leads V7–V9.' },
+      ]},
+      { title: 'Differentiating causes of ST elevation', list: [
+        'STEMI: ST elevation in ≥ 2 contiguous leads in one coronary territory; reciprocal ST depression in opposing leads; evolves over hours (T inversion, Q waves).',
+        'Pericarditis: diffuse saddle-shaped ST elevation in all territories (II, aVF, and lateral leads); PR segment depression (most specific); no reciprocal changes; no Q waves.',
+        'Early repolarisation: J-point elevation (notched/slurred QRS terminal); upsloping ST; concave morphology; most marked in V3–V4 and inferior leads; benign in most; can mimic STEMI.',
+        'LV aneurysm: persistent ST elevation weeks after MI (usually V1–V4); Q waves present; does not evolve over days.',
+        'Brugada pattern: coved ST elevation ≥ 2 mm in V1–V2 followed by negative T wave; pseudo-RBBB; associated with VF risk and family history of sudden death.',
+        'Hyperkalaemia: can produce ST elevation, peaked T waves, and wide QRS — check K+ and calcium.',
+      ]},
+      { title: 'T-wave changes', text: 'Normal T waves are upright in I, II, V3–V6, and usually aVF. T waves are normally inverted in aVR and may be inverted in III, aVL, and V1. Tall peaked T waves (hyperacute T waves) may be the earliest sign of STEMI — they appear before ST elevation. Diffuse symmetrically inverted T waves suggest ischaemia, hypertrophic cardiomyopathy, or CNS injury. Biphasic T waves in V2–V3 = Wellens syndrome (critical LAD stenosis).' }
+    ]
+  },
+  hypertrophy: {
+    title: 'About chamber hypertrophy',
+    sections: [
+      { title: 'Why hypertrophy alters the ECG', text: 'Increased myocardial mass generates larger electrical forces, increasing QRS amplitude. Hypertrophied cells also develop biochemical and structural changes (including gap junction remodelling and ion channel alterations) that widen the QRS, delay the intrinsicoid deflection, and produce secondary ST-T abnormalities. These repolarisation abnormalities (ST depression with asymmetric T-wave inversion in affected leads) reflect subendocardial ischaemia from high wall tension and impaired blood flow.' },
+      { title: 'LVH voltage criteria', table: [
+        ['Sokolow-Lyon','S in V1 + tallest R in V5 or V6 > 35 mm','Both sexes; most widely used; sensitivity ~20–50%, specificity ~85–95%.'],
+        ['Cornell (voltage)','S in V3 + R in aVL > 28 mm (men); > 20 mm (women)','Better in women; sensitivity similar to Sokolow; higher accuracy with QRS duration product.'],
+        ['Cornell (product)','Cornell voltage × QRS duration > 2436 mm·ms','Best single criterion; incorporates activation time as well as voltage.'],
+        ['Romhilt-Estes','Point score ≥ 5 (definite) or 4 (probable); includes voltage, axis, ST-T, P wave criteria','More comprehensive; incorporates multiple ECG features.'],
+      ]},
+      { title: 'LVH — additional ECG features', list: [
+        'Delayed intrinsicoid deflection (time to peak R wave in V5 or V6 > 50 ms).',
+        'QRS duration prolonged but usually < 120 ms (not full BBB).',
+        'ST-segment depression and asymmetric T-wave inversion in lateral leads (I, aVL, V5–V6) — the LVH "strain" pattern.',
+        'Left axis deviation (usually –15° to –30°); may reflect concomitant left anterior fascicular block.',
+        'Left atrial abnormality (P mitrale) frequently coexists — broad notched P in II, large terminal negative P in V1.',
+        'Amplitude criteria are less reliable in women (lower baseline voltages), obesity, COPD (insulating effect), and African-American patients (higher baseline voltages).',
+      ]},
+      { title: 'RVH — key criteria', list: [
+        'Right axis deviation (> +90°) — essential for diagnosis.',
+        'R/S ratio > 1 in V1 (dominant R wave in right precordial leads).',
+        'Persistent S waves in V5–V6 (deep S waves in left precordial leads).',
+        'R in V1 > 0.7 mV with right axis deviation suggests significant RV pressure overload.',
+        'Right atrial abnormality (P pulmonale: peaked P > 0.25 mV in lead II) frequently coexists.',
+        'RVH ECG criteria have low sensitivity (~10–40%) but high specificity (> 95%).',
+      ]},
+      { title: 'Clinical significance of LVH on ECG', text: 'ECG-diagnosed LVH is associated with significantly increased risk of cardiovascular mortality and morbidity. In the LIFE study, Cornell voltage criteria were an independent predictor of cardiovascular events; regression of LVH with antihypertensive treatment (particularly ARBs/ACE inhibitors) correlated with a ~25% reduction in cardiovascular deaths. Providing patients with tangible ECG evidence of end-organ damage can improve medication adherence.' }
+    ]
+  }
+};
+
+function toggleEdu(id) {
+  const content = document.getElementById('edu-content-'+id);
+  const btn = document.getElementById('edu-btn-'+id);
+  if (!content) return;
+  content.classList.toggle('open');
+  btn.classList.toggle('open');
+}
+
+function renderEduPanel(stepId) {
+  const e = EDU[stepId];
+  if (!e) return '';
+  let sectionsHtml = '';
+  e.sections.forEach(s => {
+    sectionsHtml += `<div class="edu-section"><div class="edu-section-title">${s.title}</div>`;
+    if (s.text) sectionsHtml += `<div class="edu-text">${s.text}</div>`;
+    if (s.list) {
+      sectionsHtml += `<ul class="edu-list">`;
+      s.list.forEach(li => { sectionsHtml += `<li>${li}</li>`; });
+      sectionsHtml += `</ul>`;
+    }
+    if (s.grid) {
+      sectionsHtml += `<div class="edu-grid">`;
+      s.grid.forEach(g => {
+        sectionsHtml += `<div class="edu-cell"><div class="ec-label">${g.label}</div><div class="ec-val">${g.val}</div>${g.sub?`<div class="ec-sub">${g.sub}</div>`:''}</div>`;
+      });
+      sectionsHtml += `</div>`;
+    }
+    if (s.table) {
+      const cols = s.table[0].length;
+      sectionsHtml += `<table class="edu-table"><thead><tr>`;
+      if (cols === 2) { sectionsHtml += `<th>Item</th><th>Detail</th>`; }
+      else if (cols === 3) { sectionsHtml += `<th>Type</th><th>Criteria</th><th>Notes</th>`; }
+      sectionsHtml += `</tr></thead><tbody>`;
+      s.table.forEach(row => {
+        sectionsHtml += `<tr>`;
+        row.forEach(cell => { sectionsHtml += `<td>${cell}</td>`; });
+        sectionsHtml += `</tr>`;
+      });
+      sectionsHtml += `</tbody></table>`;
+    }
+    sectionsHtml += `</div>`;
+  });
+  return `
+  <div class="edu-panel">
+    <button class="edu-toggle" id="edu-btn-${stepId}" onclick="toggleEdu('${stepId}')">
+      <span class="edu-label"><i class="ti ti-book-2"></i>${e.title}</span>
+      <i class="ti ti-chevron-down chevron"></i>
+    </button>
+    <div class="edu-content" id="edu-content-${stepId}">
+      ${sectionsHtml}
+    </div>
+  </div>`;
+}
+
+/* ── Steps definition ── */
+const STEPS = [
+  {
+    id:'rate', num:1, title:'Rate', sub:'How fast is the heart beating?',
+    questions:[
+      { id:'rate_val', type:'number', label:'heart rate', unit:'bpm',
+        hint:'Regular: 300 ÷ large boxes between R waves. Irregular: count all QRS in the 10-second strip × 6. Or use 1500 ÷ small boxes for precision.',
+        compute: v => {
+          const n=parseInt(v); if(isNaN(n)||n<=0) return null;
+          if(n<40) return {label:`${n} bpm — severe bradycardia`,flag:'bad'};
+          if(n<60) return {label:`${n} bpm — bradycardia`,flag:'warn'};
+          if(n<=100) return {label:`${n} bpm — normal`,flag:'ok'};
+          if(n<=150) return {label:`${n} bpm — tachycardia`,flag:'bad'};
+          return {label:`${n} bpm — rapid tachycardia`,flag:'bad'};
+        }
+      }
+    ]
+  },
+  {
+    id:'rhythm', num:2, title:'Rhythm', sub:'Origin and regularity of each beat',
+    questions:[
+      { id:'regularity', type:'choice', label:'QRS spacing regularity',
+        hint:'Assess the rhythm strip leads (II, V1, V5) across the full 10 seconds. Measure at least 3–4 R-R intervals.',
+        options:[
+          {v:'regular', l:'Regular — equal spacing throughout', cls:'normal'},
+          {v:'irreg_reg', l:'Irregularly regular — mostly regular, unpredictable breaks (PACs/PVCs)', cls:'warn'},
+          {v:'reg_irreg', l:'Regularly irregular — irregular but in a repeating pattern (bigeminy etc.)', cls:'warn'},
+          {v:'irreg_irreg', l:'Irregularly irregular — completely erratic, no pattern', cls:'bad'},
+        ]
+      },
+      { id:'p_waves', type:'choice', label:'P wave morphology (assess leads I, II, aVF, and aVR)',
+        hint:'Sinus rhythm requires P waves positive in leads I, II, and aVF; negative in aVR. This confirms a P vector of +50° to +80° originating from the SA node. Lead V1 may be biphasic (+/–) normally. Leads II and V1 are the best leads to spot P waves, but morphology is confirmed in I, II, aVF, and aVR.',
+        options:[
+          {v:'normal', l:'Upright in I, II, and aVF; negative in aVR — 1:1 with QRS — normal sinus origin', cls:'normal'},
+          {v:'absent', l:'Absent or disorganised fibrillatory baseline', cls:'bad'},
+          {v:'abnormal_morph', l:'Present but not meeting sinus criteria (e.g. inverted in II or aVF, upright in aVR)', cls:'warn'},
+          {v:'dissociated', l:'Present but dissociated from QRS complexes', cls:'bad'},
+        ]
+      }
+    ]
+  },
+  {
+    id:'axis', num:3, title:'Axis & QRS', sub:'Direction of depolarisation and conduction time',
+    questions:[
+      { id:'lead1', type:'choice', label:'Lead I — QRS overall direction',
+        hint:'Lead I runs right arm → left arm (0°). A positive QRS = impulse travelling left (normal). Negative = impulse travelling right.',
+        options:[
+          {v:'pos', l:'Positive (upright)', cls:'normal'},
+          {v:'neg', l:'Negative (inverted)', cls:'bad'},
+          {v:'biphasic', l:'Biphasic / isoelectric', cls:'warn'},
+        ]
+      },
+      { id:'avf', type:'choice', label:'Lead aVF — QRS overall direction',
+        hint:'aVF points toward the feet (+90°). Positive = impulse travelling inferiorly (normal). Negative = impulse travelling superiorly (left axis).',
+        options:[
+          {v:'pos', l:'Positive (upright)', cls:'normal'},
+          {v:'neg', l:'Negative (inverted)', cls:'bad'},
+          {v:'biphasic', l:'Biphasic / isoelectric', cls:'warn'},
+        ]
+      },
+      { id:'qrs_width', type:'number', label:'QRS duration', unit:'ms',
+        hint:'Count small boxes in the widest QRS complex in any lead × 40 ms. Normal < 120 ms. Values 100–119 ms = incomplete BBB. ≥ 120 ms = complete BBB or ventricular origin.',
+        compute: v => {
+          const n=parseInt(v); if(isNaN(n)||n<=0) return null;
+          if(n<100) return {label:`${n} ms — narrow, normal conduction`,flag:'ok'};
+          if(n<120) return {label:`${n} ms — borderline / incomplete BBB`,flag:'warn'};
+          if(n<160) return {label:`${n} ms — wide QRS, complete BBB pattern`,flag:'bad'};
+          return {label:`${n} ms — very wide (> 160 ms), suspect VT`,flag:'bad'};
+        }
+      }
+    ]
+  },
+  {
+    id:'intervals', num:4, title:'Intervals', sub:'Timing of electrical conduction',
+    questions:[
+      { id:'qrs_width2', type:'number', label:'QRS duration', unit:'ms',
+        hint:'Count small boxes in the widest QRS in any lead × 40 ms. Normal < 120 ms. Values 100–119 ms = incomplete BBB. ≥ 120 ms = complete BBB or ventricular origin.',
+        compute: v => {
+          const n=parseInt(v); if(isNaN(n)||n<=0) return null;
+          if(n<100) return {label:`${n} ms — narrow, normal conduction`,flag:'ok'};
+          if(n<120) return {label:`${n} ms — borderline / incomplete BBB`,flag:'warn'};
+          if(n<160) return {label:`${n} ms — wide QRS, complete BBB pattern`,flag:'bad'};
+          return {label:`${n} ms — very wide (> 160 ms), suspect VT`,flag:'bad'};
+        }
+      },
+      { id:'pr', type:'number', label:'PR interval', unit:'ms',
+        hint:'Measured from the start of the P wave to the start of the QRS complex. Use the lead with the most visible P wave onset. Normal 120–200 ms. Also assess: does every P conduct? Does the PR change beat to beat?',
+        compute: v => {
+          const n=parseInt(v); if(isNaN(n)||n<=0) return null;
+          if(n<120) return {label:`${n} ms — short PR (< 120 ms)`,flag:'warn'};
+          if(n<=200) return {label:`${n} ms — normal`,flag:'ok'};
+          if(n<=300) return {label:`${n} ms — prolonged, 1° AV block`,flag:'bad'};
+          return {label:`${n} ms — markedly prolonged`,flag:'bad'};
+        }
+      },
+      { id:'av_pattern', type:'choice', label:'AV conduction pattern',
+        hint:'After measuring the PR, determine whether all P waves conduct to a QRS. The "grouped beating" pattern in the rhythm strip is the key clue to Wenckebach.',
+        options:[
+          {v:'one_to_one', l:'1:1 conduction — every P wave followed by a QRS', cls:'normal'},
+          {v:'mobitz1', l:'Progressive PR lengthening then dropped beat — resets (Mobitz I / Wenckebach)', cls:'warn'},
+          {v:'mobitz2', l:'Fixed PR with sudden, unpredicted dropped beats (Mobitz II)', cls:'bad'},
+          {v:'complete', l:'Complete AV dissociation — P waves and QRS fully independent (3° block)', cls:'bad'},
+        ]
+      },
+      { id:'qtc', type:'number', label:'QTc (rate-corrected)', unit:'ms',
+        hint:'Measure QT from the start of QRS to the end of the T wave. Use the lead with the longest QT (often V2 or V3). The automated ECG system calculates QTc — verify manually if T waves are peaked, U waves are present, or the result seems inconsistent with the clinical picture.',
+        compute: v => {
+          const n=parseInt(v); if(isNaN(n)||n<=0) return null;
+          if(n<390) return {label:`${n} ms — short QTc (< 390 ms)`,flag:'warn'};
+          if(n<=450) return {label:`${n} ms — normal (men and women ≤ 450 ms)`,flag:'ok'};
+          if(n<=460) return {label:`${n} ms — borderline (women up to 460 ms)`,flag:'warn'};
+          if(n<=500) return {label:`${n} ms — prolonged QTc — Torsades risk`,flag:'bad'};
+          return {label:`${n} ms — critically prolonged (> 500 ms) — high Torsades risk`,flag:'bad'};
+        }
+      }
+    ]
+  },
+  {
+    id:'st', num:5, title:'ST changes', sub:'Ischaemia, injury and repolarisation',
+    questions:[
+      { id:'st_seg', type:'choice', label:'ST segment appearance',
+        hint:'Compare the ST segment level to the TP segment (the flat line between T wave end and the next P wave — the true isoelectric line). Assess each coronary territory separately.',
+        options:[
+          {v:'isoelectric', l:'Isoelectric — ST at the same level as TP segment throughout', cls:'normal'},
+          {v:'elevation', l:'ST elevation in ≥ 2 contiguous leads (single coronary territory)', cls:'bad'},
+          {v:'depression', l:'ST depression — horizontal or downsloping ≥ 0.05 mV in ≥ 2 contiguous leads', cls:'bad'},
+          {v:'diffuse_elev', l:'Diffuse ST elevation across all coronary territories', cls:'warn'},
+          {v:'t_inv', l:'T-wave inversions only — no ST elevation or depression', cls:'warn'},
+        ]
+      },
+      { id:'territory', type:'choice', label:'Territory involved (if any change present)',
+        hint:'Group leads by coronary artery supply. Reciprocal ST depression in the opposite territory supports true ischaemic ST elevation.',
+        options:[
+          {v:'none', l:'No ST or T-wave changes', cls:'normal'},
+          {v:'inferior', l:'Inferior (II, III, aVF) — RCA in 90%, LCx in 10%', cls:'bad'},
+          {v:'anterior', l:'Anterior / septal (V1–V4) — LAD', cls:'bad'},
+          {v:'lateral', l:'Lateral (I, aVL, V5–V6) — LCx', cls:'bad'},
+          {v:'diffuse', l:'Diffuse — affecting more than one territory or all leads', cls:'warn'},
+        ]
+      }
+    ]
+  },
+  {
+    id:'hypertrophy', num:6, title:'Hypertrophy', sub:'Chamber voltage criteria',
+    questions:[
+      { id:'cornell', type:'number', label:'Cornell: S in V3 + R in aVL', unit:'mm',
+        hint:'Measure absolute amplitudes (mm): S wave depth in V3 plus R wave height in aVL. Positive: > 28 mm (men) or > 20 mm (women). Women have lower baseline voltages — the lower threshold corrects for this.',
+        compute: v => {
+          const n=parseInt(v); if(isNaN(n)||n<0) return null;
+          if(n<20) return {label:`${n} mm — below threshold (both sexes)`,flag:'ok'};
+          if(n<28) return {label:`${n} mm — meets women's threshold (> 20 mm)`,flag:'warn'};
+          return {label:`${n} mm — meets men's threshold (> 28 mm), LVH`,flag:'bad'};
+        }
+      },
+      { id:'sokolow', type:'number', label:'Sokolow-Lyon: S in V1 + tallest R in V5 or V6', unit:'mm',
+        hint:'Add S wave depth in V1 to the tallest R wave in V5 or V6. Threshold > 35 mm for both sexes. Note: sensitivity is only 20–50% — a negative result does not exclude LVH. Sensitivity higher in patients with hypertension.',
+        compute: v => {
+          const n=parseInt(v); if(isNaN(n)||n<0) return null;
+          if(n<=35) return {label:`${n} mm — below threshold`,flag:'ok'};
+          if(n<=45) return {label:`${n} mm — meets LVH threshold (> 35 mm)`,flag:'bad'};
+          return {label:`${n} mm — markedly elevated, LVH`,flag:'bad'};
+        }
+      }
+    ]
+  }
+];
+
+const ABNORMAL_HINTS = {
+  p_waves: { absent: 'Absent P waves + irregularly irregular rhythm = atrial fibrillation. Absent P waves + regular wide QRS — consider VT (retrograde P buried) or junctional rhythm.', dissociated: 'P waves present but dissociated from QRS = 3° AV block. Ventricles driven by slow junctional or ventricular escape rhythm (usually 20–60 bpm). Requires urgent pacemaker evaluation — may cause haemodynamic compromise.' },
+  regularity: { irreg_irreg: 'Irregularly irregular with absent P waves = atrial fibrillation. The AV node acts as a variable gatekeeper for chaotic atrial impulses (350–600/min), producing an erratic ventricular rate. Assess rate control and anticoagulation risk.' },
+  av_pattern: { mobitz2: 'Mobitz II = high-grade AV block. Conduction fails unpredictably — can progress to complete heart block without warning. Permanent pacemaker usually required. Distinguish from Mobitz I: in Mobitz II the PR is fixed in the conducted beats.', complete: 'Complete (3°) AV block = medical emergency. No atrial impulses conduct to the ventricles. An escape rhythm (junctional 40–60 bpm; ventricular 20–40 bpm) maintains cardiac output but is unreliable. Permanent pacemaker required.' },
+  st_seg: { elevation: 'ST elevation in a single coronary territory = STEMI until proven otherwise. This is a medical emergency. The injury current reflects transmural ischaemia. Time is myocardium: door-to-balloon time < 90 minutes is the target.', depression: 'ST depression = ischaemia. Subendocardial ischaemia results in an ST vector directed toward the inner ventricular layer and cavity. May represent NSTEMI, unstable angina, or demand ischaemia. Urgent cardiology review and serial troponins.' },
+};
+const WARN_HINTS = {
+  regularity: {
+    irreg_reg: 'Predominantly regular with unpredictable breaks = ectopic beats. PACs: narrow QRS, different P morphology, non-compensatory pause. PVCs: wide bizarre QRS, no preceding P, compensatory pause. Usually benign but can trigger sustained arrhythmias in structural heart disease.',
+    reg_irreg: 'Regularly irregular: ectopic beats at fixed intervals. PVC bigeminy (every 2nd beat), trigeminy (every 3rd), quadrigeminy (every 4th). Sinus arrhythmia (varies with respiration) is a normal variant.'
+  },
+  st_seg: {
+    diffuse_elev: 'Diffuse ST elevation across all territories = pericarditis until proven otherwise. Saddle-shaped morphology; PR segment depression (most specific sign); no reciprocal changes; no Q waves. Managed medically (NSAIDs + colchicine). Not primary PCI. Distinguish from multi-vessel ischaemia by absence of reciprocal changes.',
+    t_inv: 'T-wave inversions are less specific than ST changes. Causes: ischaemia (Wellens syndrome = deep symmetric V2–V3 inversions indicates critical LAD disease), LVH strain pattern (asymmetric lateral T inversions), Brugada pattern, RVH (right precordial), CNS injury, normal variant (aVR, V1, III in some).'
+  },
+  av_pattern: { mobitz1: 'Mobitz I (Wenckebach): AV node conduction gradually fails until a beat is dropped, then resets. Caused by increased vagal tone, inferior MI (RCA supplies AV node in 90%), digoxin, beta-blockers. The progressive PR lengthening is most evident in the 2–3 beats before the dropped beat.' },
+  p_waves: { abnormal_morph: 'Abnormal P morphology without obvious ectopic focus: consider atrial abnormality (enlarged LA = broad notched P in II, biphasic V1; enlarged RA = tall peaked P > 0.25 mV in II), interatrial block, or ectopic atrial rhythm.' }
+};
+
+const state = { step:0, answers:{}, showReport:false };
+
+function getAxisResult() {
+  const l1=state.answers['lead1'], avf=state.answers['avf'];
+  if(!l1||!avf) return null;
+  if(l1==='pos'&&avf==='pos') return {label:'Normal axis (–30° to +90°)',flag:'ok'};
+  if(l1==='pos'&&avf==='neg') return {label:'Left axis deviation (< –30°)',flag:'warn'};
+  if(l1==='neg'&&avf==='pos') return {label:'Right axis deviation (> +90°)',flag:'warn'};
+  if(l1==='neg'&&avf==='neg') return {label:'Extreme / northwest axis deviation',flag:'bad'};
+  return {label:'Indeterminate axis — use hexaxial system',flag:'warn'};
+}
+
+function getRhythmResult() {
+  const reg=state.answers['regularity'], pw=state.answers['p_waves'];
+  if(!reg||!pw) return null;
+  if(reg==='regular'&&pw==='normal') return {label:'Normal sinus rhythm',flag:'ok'};
+  if(reg==='irreg_irreg'&&pw==='absent') return {label:'Atrial fibrillation',flag:'bad'};
+  if(pw==='dissociated') return {label:'Complete AV block / AV dissociation',flag:'bad'};
+  if(reg==='regular'&&pw==='abnormal_morph') return {label:'Non-sinus atrial or junctional rhythm',flag:'warn'};
+  if(reg==='irreg_reg') return {label:'Sinus rhythm with ectopic beats (PACs/PVCs)',flag:'warn'};
+  if(reg==='reg_irreg') return {label:'Regularly irregular — bigeminy/trigeminy pattern',flag:'warn'};
+  return {label:'Abnormal rhythm — further evaluation needed',flag:'warn'};
+}
+
+function getSTResult() {
+  const st=state.answers['st_seg'], terr=state.answers['territory'];
+  if(!st) return null;
+  if(st==='isoelectric') return {label:'No ST changes — normal repolarisation',flag:'ok'};
+  if(st==='elevation'&&terr&&terr!=='none'&&terr!=='diffuse') return {label:`STEMI pattern — ${terr} territory. Medical emergency.`,flag:'bad'};
+  if(st==='diffuse_elev'||terr==='diffuse') return {label:'Diffuse ST elevation — consider pericarditis vs multi-vessel ischaemia',flag:'warn'};
+  if(st==='depression') return {label:'ST depression — ischaemia / NSTEMI pattern',flag:'bad'};
+  if(st==='t_inv') return {label:'T-wave inversions — ischaemia, strain pattern, or Wellens syndrome',flag:'warn'};
+  return null;
+}
+
+function allAnswered(stepIdx) {
+  return STEPS[stepIdx].questions.every(q => { const v=state.answers[q.id]; return v!==undefined&&v!==''; });
+}
+
+function renderProgress() {
+  let h='';
+  STEPS.forEach((s,i) => {
+    const done=i<state.step||state.showReport, active=i===state.step&&!state.showReport;
+    h+=`<button class="prog-pill ${done?'done':active?'active':''}" onclick="goToStep(${i})">${done?'<i class="ti ti-check"></i>':`<span style="font-size:10px">${s.num}</span>`} ${s.title}</button>`;
+  });
+  h+=`<button class="prog-pill report ${state.showReport?'active':''}" onclick="showReport()"><i class="ti ti-clipboard-list"></i> Report</button>`;
+  document.getElementById('progress').innerHTML=h;
+}
+
+function renderStep() {
+  const s=STEPS[state.step];
+  let body='';
+  body+=renderEduPanel(s.id);
+
+  s.questions.forEach(q => {
+    const val=state.answers[q.id];
+    body+=`<div class="q-block" style="margin-bottom:1.15rem"><div class="q-label">${q.label}</div>`;
+    if(q.type==='choice') {
+      body+=`<div class="opts">`;
+      q.options.forEach(opt => {
+        const sel=val===opt.v, sc=sel?(opt.cls==='normal'?'sel-normal':opt.cls==='warn'?'sel-warn':'sel-bad'):'';
+        body+=`<button class="opt ${sc}" onclick="pick('${q.id}','${opt.v}')"><span>${opt.l}</span><i class="ti ${sel?'ti-check':'ti-chevron-right'}"></i></button>`;
+      });
+      body+=`</div>`;
+      if(val) {
+        const opt=q.options.find(o=>o.v===val);
+        const an=ABNORMAL_HINTS[q.id]?.[val], wn=WARN_HINTS[q.id]?.[val];
+        const note=an||wn;
+        if(note&&opt&&(opt.cls==='bad'||opt.cls==='warn')) {
+          body+=`<div class="clinical-note ${opt.cls==='warn'?'clinical-note-warn':''}">${note}</div>`;
+        }
+      }
+    }
+    if(q.type==='number') {
+      const result=val?(q.compute&&q.compute(val)):null;
+      const rc=result?(result.flag==='ok'?'res-normal':result.flag==='warn'?'res-warn':'res-bad'):'';
+      body+=`<div class="num-row"><input class="num-input" type="number" id="ni_${q.id}" value="${val||''}" placeholder="—" min="0" oninput="setNum('${q.id}',this.value)" onchange="render()">
+        <span class="num-unit">${q.unit}</span>
+        <span class="num-result ${rc}" id="res_${q.id}" style="${result?'':'display:none'}">${result?`<i class="ti ${result.flag==='ok'?'ti-check':result.flag==='warn'?'ti-alert-circle':'ti-alert-triangle'}"></i>${result.label}`:''}</span></div>`;
+    }
+    if(q.hint) body+=`<div class="hint">${q.hint}</div>`;
+    body+=`</div>`;
+  });
+
+  const canNext=allAnswered(state.step), isLast=state.step===STEPS.length-1;
+  document.getElementById('main').innerHTML=`
+  <div class="step-card">
+    <div class="step-head">
+      <div class="step-num" style="background:var(--surface2);color:var(--text-muted)">${s.num}</div>
+      <div class="step-info"><h2>${s.title}</h2><p>${s.sub}</p></div>
+    </div>
+    <div class="step-body">
+      ${body}
+      <div class="nav">
+        ${state.step>0?`<button class="btn" onclick="prevStep()"><i class="ti ti-arrow-left"></i> Back</button>`:''}
+        <div class="spacer"></div>
+        ${canNext?(isLast
+          ?`<button id="nav-next" class="btn btn-success" onclick="showReport()"><i class="ti ti-clipboard-list"></i> View report</button>`
+          :`<button id="nav-next" class="btn btn-primary" onclick="nextStep()">Next <i class="ti ti-arrow-right"></i></button>`)
+          :`<button id="nav-next" class="btn" disabled>Answer all questions to continue</button>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderReport() {
+  const findings=[];
+  const rv=state.answers['rate_val']; if(rv){const r=STEPS[0].questions[0].compute(rv);if(r) findings.push({step:'Rate',label:r.label,flag:r.flag});}
+  const rr=getRhythmResult(); if(rr) findings.push({step:'Rhythm',label:rr.label,flag:rr.flag});
+  const ax=getAxisResult(); if(ax) findings.push({step:'Axis',label:ax.label,flag:ax.flag});
+  const qw=state.answers['qrs_width2']; if(qw){const r=STEPS[3].questions[0].compute(qw);if(r) findings.push({step:'QRS',label:r.label,flag:r.flag});}
+  const pr=state.answers['pr']; if(pr){const r=STEPS[3].questions[1].compute(pr);if(r) findings.push({step:'PR',label:r.label,flag:r.flag});}
+  const avp=state.answers['av_pattern'];
+  if(avp&&avp!=='one_to_one'){const m={mobitz1:'Mobitz I (Wenckebach) 2° AV block',mobitz2:'Mobitz II — high-grade 2° AV block',complete:'Complete AV block — pacemaker required'};if(m[avp]) findings.push({step:'AV conduction',label:m[avp],flag:avp==='mobitz1'?'warn':'bad'});}
+  const qtc=state.answers['qtc']; if(qtc){const r=STEPS[3].questions[3].compute(qtc);if(r) findings.push({step:'QTc',label:r.label,flag:r.flag});}
+  const st=getSTResult(); if(st) findings.push({step:'ST segment',label:st.label,flag:st.flag});
+  const cn=state.answers['cornell']; if(cn){const r=STEPS[5].questions[0].compute(cn);if(r&&r.flag!=='ok') findings.push({step:'Cornell',label:r.label,flag:r.flag});}
+  const sk=state.answers['sokolow']; if(sk){const r=STEPS[5].questions[1].compute(sk);if(r&&r.flag!=='ok') findings.push({step:'Sokolow',label:r.label,flag:r.flag});}
+
+  const bads=findings.filter(f=>f.flag==='bad'), warns=findings.filter(f=>f.flag==='warn'), oks=findings.filter(f=>f.flag==='ok');
+  let vCls='verdict-ok',vIcon='ti-check',vText='ECG within normal limits';
+  if(bads.length>0){vCls='verdict-bad';vIcon='ti-alert-triangle';vText=`${bads.length} abnormal finding${bads.length>1?'s':''} — clinical review required`;}
+  else if(warns.length>0){vCls='verdict-warn';vIcon='ti-alert-circle';vText=`${warns.length} borderline finding${warns.length>1?'s':''} — clinical correlation advised`;}
+
+  const mkGroup=(items,title,cls)=>{ if(!items.length) return '';
+    return `<div class="finding-group"><div class="finding-group-title">${title}</div>${items.map(f=>`<div class="finding-row"><span class="finding-step">${f.step}</span><span class="finding-label ${cls}">${f.label}</span></div>`).join('')}</div>`;
+  };
+
+  document.getElementById('main').innerHTML=`
+  <div class="step-card">
+    <div class="step-head">
+      <div class="step-num" style="background:var(--surface2);color:var(--text-muted)"><i class="ti ti-clipboard-list" style="font-size:15px"></i></div>
+      <div class="step-info"><h2>Interpretation report</h2><p>Summary of all findings</p></div>
+    </div>
+    <div class="step-body">
+      <div class="verdict ${vCls}"><i class="ti ${vIcon}"></i><span>${vText}</span></div>
+      ${mkGroup(bads,'Abnormal','bad')}
+      ${mkGroup(warns,'Borderline / review','warn')}
+      ${mkGroup(oks,'Normal','ok')}
+      ${!findings.length?'<p style="color:var(--text-muted);font-size:13px">No findings recorded — work through the steps to generate a report.</p>':''}
+      <div class="disclaimer">Educational use only. Always correlate ECG findings with clinical history, symptoms, and laboratory values. Never use in isolation for clinical decision-making. For urgent findings, escalate immediately. Sources: Mar et al., Am J Health-Syst Pharm 2021;78:850–861 · Braunwald's Heart Disease, 11th ed.</div>
+      <div class="nav" style="margin-top:1rem">
+        <button class="btn" onclick="goToStep(0)"><i class="ti ti-arrow-left"></i> Back to steps</button>
+        <div class="spacer"></div>
+        <button class="btn" onclick="resetAll()"><i class="ti ti-refresh"></i> New ECG</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render(){renderProgress();if(state.showReport) renderReport(); else renderStep();}
+function pick(qid,val){state.answers[qid]=val;render();}
+function setNum(qid,val){
+  state.answers[qid]=val;
+  const q=STEPS[state.step]&&STEPS[state.step].questions.find(q=>q.id===qid);
+  const result=q&&q.compute&&q.compute(val);
+  const badge=document.getElementById('res_'+qid);
+  if(badge){
+    if(result){const rc=result.flag==='ok'?'res-normal':result.flag==='warn'?'res-warn':'res-bad';const ic=result.flag==='ok'?'ti-check':result.flag==='warn'?'ti-alert-circle':'ti-alert-triangle';badge.className='num-result '+rc;badge.innerHTML=`<i class="ti ${ic}"></i>${result.label}`;badge.style.display='inline-flex';}
+    else{badge.innerHTML='';badge.style.display='none';}
+  }
+  const nb=document.getElementById('nav-next');
+  if(nb){const cn=allAnswered(state.step),il=state.step===STEPS.length-1;nb.disabled=!cn;if(cn){nb.className=il?'btn btn-success':'btn btn-primary';nb.innerHTML=il?'<i class="ti ti-clipboard-list"></i> View report':'Next <i class="ti ti-arrow-right"></i>';nb.onclick=il?showReport:nextStep;}else{nb.className='btn';nb.innerHTML='Answer all questions to continue';}}
+}
+function nextStep(){if(state.step<STEPS.length-1){state.step++;state.showReport=false;render();}}
+function prevStep(){if(state.step>0){state.step--;state.showReport=false;render();}}
+function goToStep(i){state.step=i;state.showReport=false;render();}
+function showReport(){state.showReport=true;render();}
+function resetAll(){state.step=0;state.answers={};state.showReport=false;render();}
+
+/* ── Mode switching ── */
+function switchMode(m) {
+  document.getElementById('ecg-mode').style.display = m==='ecg' ? '' : 'none';
+  document.getElementById('qtc-mode').style.display = m==='qtc' ? '' : 'none';
+  document.getElementById('tab-ecg').classList.toggle('active', m==='ecg');
+  document.getElementById('tab-qtc').classList.toggle('active', m==='qtc');
+  if(m==='qtc') renderQTC();
+}
+
+/* ── Tisdale QTc Risk Score Tool ── */
+const TISDALE_ITEMS = [
+  { id:'age68',   label:'Age ≥ 68 years',                                    pts:1 },
+  { id:'female',  label:'Female sex',                                         pts:1 },
+  { id:'loop',    label:'Receiving a loop diuretic (furosemide, bumetanide, ethacrynic acid)', pts:1 },
+  { id:'k',       label:'Serum K⁺ ≤ 3.5 mEq/L (hypokalaemia)',               pts:2 },
+  { id:'qtc450',  label:'Admitting QTc ≥ 450 ms',                            pts:2 },
+  { id:'mi',      label:'Diagnosis of acute myocardial infarction',           pts:2 },
+  { id:'qt2drugs',label:'Receiving ≥ 2 QTc-prolonging drugs',                pts:3 },
+  { id:'sepsis',  label:'Diagnosis of sepsis',                                pts:3 },
+  { id:'hf',      label:'Left ventricular dysfunction / heart failure',       pts:3 },
+  { id:'qt1drug', label:'Receiving 1 QTc-prolonging drug',                   pts:3 },
+];
+
+const qtcState = { checked: new Set() };
+
+function tisdalePts() {
+  return [...qtcState.checked].reduce((s,id) => {
+    const item = TISDALE_ITEMS.find(i=>i.id===id);
+    return s + (item ? item.pts : 0);
+  }, 0);
+}
+
+function toggleTisdale(id) {
+  if(qtcState.checked.has(id)) qtcState.checked.delete(id);
+  else qtcState.checked.add(id);
+  renderQTC();
+}
+
+function resetQTC() { qtcState.checked.clear(); renderQTC(); }
+
+function renderQTC() {
+  const pts = tisdalePts();
+  let cat, catCls, incidence, actions;
+  if(pts < 7) {
+    cat='Low risk'; catCls='score-low';
+    incidence='~15% incidence of QTc prolongation during hospitalisation.';
+    actions=`<div class="action-box action-box-ok"><strong>Low risk:</strong> Routine clinical care. No mandatory ECG monitoring for QTc unless clinically indicated. Correct electrolytes if abnormal. Review medication list for QTc-prolonging agents using <a href="https://www.crediblemeds.org" target="_blank" style="color:inherit">crediblemeds.org</a>.</div>`;
+  } else if(pts <= 10) {
+    cat='Moderate risk'; catCls='score-mod';
+    incidence='~37% incidence of QTc prolongation during hospitalisation.';
+    actions=`<div class="action-box action-box-warn"><strong>Moderate risk:</strong> Consider baseline ECG and repeat ECG 8–12 h after initiating any new QTc-prolonging drug. Correct hypokalaemia (target K⁺ ≥ 4.0 mEq/L) and hypomagnesaemia (target Mg²⁺ ≥ 1.0 mmol/L). Review all QTc-prolonging agents — can any be substituted with a lower-risk alternative? Alert prescribers. Monitor electrolytes and renal function regularly. Consider continuous telemetry if QTc climbs above 470 ms (men) or 480 ms (women).</div>`;
+  } else {
+    cat='High risk'; catCls='score-high';
+    incidence='~73% incidence of QTc prolongation during hospitalisation.';
+    actions=`<div class="action-box action-box-bad"><strong>High risk:</strong> Baseline ECG required. Repeat ECG 8–12 h after each new QTc-prolonging drug. Continuous cardiac telemetry strongly recommended. Actively substitute QTc-prolonging agents with safer alternatives where possible (e.g. penicillin/cephalosporin instead of fluoroquinolone; lorazepam instead of haloperidol IV; granisetron instead of ondansetron). Correct electrolytes aggressively (K⁺ ≥ 4.0; Mg²⁺ ≥ 1.0 mmol/L). Involve pharmacy in medication review. If QTc ≥ 500 ms or increases > 60 ms from baseline: reassess urgently — consider stopping all non-essential QTc-prolonging drugs. Refer to cardiology if QTc persistently ≥ 500 ms.</div>`;
+  }
+
+  const scoreHtml = `
+  <div class="score-display ${catCls}">
+    <div class="score-num">${pts}</div>
+    <div class="score-info">
+      <div class="score-cat">${cat} (score ${pts}/21)</div>
+      <div class="score-sub">${incidence}</div>
+    </div>
+  </div>
+  ${actions}`;
+
+  const itemsHtml = TISDALE_ITEMS.map(item => {
+    const chk = qtcState.checked.has(item.id);
+    return `<button class="tisdale-item ${chk?'checked':''}" onclick="toggleTisdale('${item.id}')">
+      <span class="ti-label">${chk?'<i class="ti ti-check" style="margin-right:6px"></i>':''} ${item.label}</span>
+      <span class="ti-pts">+${item.pts} pt${item.pts>1?'s':''}</span>
+    </button>`;
+  }).join('');
+
+  document.getElementById('qtc-main').innerHTML = `
+
+  <!-- Score calculator -->
+  <div class="qtc-card">
+    <div class="qtc-head">
+      <div class="qtc-head-icon"><i class="ti ti-calculator"></i></div>
+      <div class="step-info"><h2>Tisdale QTc Risk Score</h2><p>Validated for hospitalised patients in cardiac care units · Tisdale et al., Circ Cardiovasc Qual Outcomes 2013</p></div>
+    </div>
+    <div class="qtc-body">
+      <div class="qtc-section">
+        <div class="qtc-section-title"><i class="ti ti-list-check"></i>Check all risk factors present</div>
+        <div class="tisdale-grid">${itemsHtml}</div>
+      </div>
+      <div class="qtc-section">
+        <div class="qtc-section-title"><i class="ti ti-chart-bar"></i>Score result</div>
+        ${scoreHtml}
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:0.5rem">
+        <button class="btn" onclick="resetQTC()"><i class="ti ti-refresh"></i> Reset score</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QTc thresholds -->
+  <div class="qtc-card">
+    <div class="qtc-head">
+      <div class="qtc-head-icon"><i class="ti ti-ruler"></i></div>
+      <div class="step-info"><h2>QTc normal values & thresholds</h2><p>CCS 2023 · post-pubertal values</p></div>
+    </div>
+    <div class="qtc-body">
+      <div class="qtc-section">
+        <table class="qtc-thresh">
+          <thead><tr><th>Category</th><th>Men (post-puberty)</th><th>Women (post-puberty)</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>Normal</td><td>< 450 ms</td><td>< 460 ms</td><td><span class="qtc-badge qtc-badge-ok">Routine care</span></td></tr>
+            <tr><td>Borderline prolonged</td><td>450–469 ms</td><td>460–479 ms</td><td><span class="qtc-badge qtc-badge-warn">Correlate clinically</span></td></tr>
+            <tr><td>Clearly prolonged (99th %ile)</td><td>≥ 470 ms</td><td>≥ 480 ms</td><td><span class="qtc-badge qtc-badge-bad">Active review</span></td></tr>
+            <tr><td>High arrhythmia risk</td><td colspan="2">≥ 500 ms (either sex)</td><td><span class="qtc-badge qtc-badge-bad">Urgent action</span></td></tr>
+            <tr><td>Triggered TdP risk</td><td colspan="2">Drug-induced increase > 60–70 ms from baseline</td><td><span class="qtc-badge qtc-badge-bad">Stop offending drug</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="qtc-section">
+        <div class="qtc-section-title"><i class="ti ti-stethoscope"></i>Measurement tips (CCS 2023)</div>
+        <ul class="edu-list">
+          <li>Use the <strong>tangent method</strong>: measure from the onset of the QRS to where the tangent of the T-wave downslope crosses the baseline (TP line). <strong>Do not include U waves</strong>.</li>
+          <li>Use lead <strong>V5 or lead II</strong> — these have the largest T waves and best reflect LV repolarisation. Take the mean of 3 consecutive beats.</li>
+          <li>Apply <strong>Bazett's formula</strong> (QTc = QT / √RR, in seconds). Most accurate at HR 60–100 bpm. Overcorrects at fast rates and undercorrects at slow rates.</li>
+          <li>Automated QTc can be <strong>inaccurate</strong> with: irregular rhythm (AF), wide QRS (BBB), abnormal ST-T, peaked T waves (may be miscounted as extra QRS). <strong>Always verify manually</strong> in these situations.</li>
+          <li>Serial ECGs should be performed on the <strong>same machine</strong> in a quiet environment at rest to allow valid comparison.</li>
+          <li>QTc can be falsely prolonged <strong>immediately after cardiac arrest</strong> (hypothermia, CNS injury). Repeat ECG after stabilisation before diagnosing LQTS.</li>
+          <li>Online calculators: <a href="https://www.mayoclinic.org/medical-professionals/cardiovascular-diseases/calculators/corrected-qt-interval-qtc-calculator/itt-20487211" target="_blank" style="color:var(--blue)">Mayo Clinic QTc calculator</a> · <a href="https://www.mdcalc.com/calc/48/corrected-qt-interval-qtc" target="_blank" style="color:var(--blue)">MDCalc</a>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drug risk classification -->
+  <div class="qtc-card">
+    <div class="qtc-head">
+      <div class="qtc-head-icon"><i class="ti ti-pill"></i></div>
+      <div class="step-info"><h2>QTc-prolonging drug risk classification</h2><p>CCS 2023 intraclass risk differences · always verify at crediblemeds.org</p></div>
+    </div>
+    <div class="qtc-body">
+      <div class="qtc-section">
+        <div class="qtc-section-title"><i class="ti ti-table"></i>Key intraclass differences</div>
+        <table class="drug-table">
+          <thead><tr><th>Drug class</th><th class="risk-high">Higher risk</th><th class="risk-low">Lower risk</th><th class="risk-min">Minimal / safe alternative</th></tr></thead>
+          <tbody>
+            <tr><td>SSRI antidepressants</td><td class="risk-high">Citalopram, Escitalopram</td><td class="risk-low">Fluoxetine, Fluvoxamine</td><td class="risk-min">Sertraline, Paroxetine</td></tr>
+            <tr><td>Antipsychotics</td><td class="risk-high">Ziprasidone, Iloperidone, Amisulpride, Asenapine, Thioridazine</td><td class="risk-low">Haloperidol, Risperidone, Quetiapine, Olanzapine</td><td class="risk-min">Aripiprazole, Clozapine, Lurasidone</td></tr>
+            <tr><td>Macrolide antibiotics</td><td class="risk-high">Erythromycin</td><td class="risk-low">Clarithromycin</td><td class="risk-min">Azithromycin</td></tr>
+            <tr><td>Fluoroquinolones</td><td class="risk-high">Moxifloxacin</td><td class="risk-low">Levofloxacin, Ciprofloxacin</td><td class="risk-min">Use penicillin or cephalosporin instead where appropriate</td></tr>
+            <tr><td>Antiemetics (5-HT3)</td><td class="risk-high">Ondansetron</td><td class="risk-low">Granisetron</td><td class="risk-min">Palonosetron, Aprepitant, Dexamethasone</td></tr>
+            <tr><td>Antiarrhythmics</td><td class="risk-high">Sotalol, Dofetilide, Ibutilide, Quinidine, Procainamide</td><td class="risk-low">Amiodarone (low TdP risk despite QTc prolongation)</td><td class="risk-min">Lidocaine (Class Ib — shortens QT)</td></tr>
+            <tr><td>Analgesics / other</td><td class="risk-high">Methadone</td><td class="risk-low">Triptans</td><td class="risk-min">ADHD stimulants — generally safe</td></tr>
+            <tr><td>Antifungals</td><td class="risk-high">Fluconazole, Voriconazole</td><td class="risk-low">Itraconazole</td><td class="risk-min">Check for CYP3A4 interactions — itraconazole inhibits metabolism of other QTc drugs</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="qtc-section">
+        <div class="qtc-section-title"><i class="ti ti-alert-circle"></i>Drug interaction mechanisms (CCS 2023)</div>
+        <table class="drug-table">
+          <thead><tr><th>Mechanism</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>2 independent QTc-prolonging drugs</td><td>Methadone + ondansetron; sotalol + moxifloxacin; fluoxetine + clarithromycin</td></tr>
+            <tr><td>QTc drug + electrolyte waster</td><td>Ziprasidone + thiazide/loop diuretic (K⁺/Mg²⁺ loss); itraconazole + cisplatin (Ca²⁺/K⁺ loss)</td></tr>
+            <tr><td>PK: CYP inhibition ↑ QTc drug level</td><td>Flecainide + bupropion/paroxetine/terbinafine (CYP2D6); pimozide + verapamil (CYP3A4); quetiapine + itraconazole (CYP3A4)</td></tr>
+            <tr><td>Mixed mechanism</td><td>Sotalol + PPI (sotalol prolongs QTc; PPI → hypomagnesaemia especially with loop diuretic)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="action-box action-box-blue" style="margin-top:0.5rem">
+        <strong>Always check:</strong> <a href="https://www.crediblemeds.org" target="_blank" style="color:inherit;text-decoration:underline">crediblemeds.org</a> (also available as a smartphone app) for up-to-date drug-specific risk classification and interaction checking before prescribing or dispensing any agent in a patient with risk factors for QTc prolongation.
+      </div>
+    </div>
+  </div>
+
+  <!-- Management of TdP -->
+  <div class="qtc-card">
+    <div class="qtc-head">
+      <div class="qtc-head-icon" style="background:var(--red-bg);color:var(--red)"><i class="ti ti-heartbeat"></i></div>
+      <div class="step-info"><h2>Management of TdP and acquired long QT</h2><p>CCS 2023 practical tips</p></div>
+    </div>
+    <div class="qtc-body">
+      <div class="qtc-section">
+        <div class="qtc-section-title"><i class="ti ti-first-aid-kit"></i>Acute TdP management</div>
+        <ul class="edu-list">
+          <li><strong>Stop all QTc-prolonging medications</strong> immediately.</li>
+          <li><strong>IV magnesium sulfate</strong> — first-line treatment for TdP regardless of serum Mg²⁺ level (2 g IV over 1–2 min, then infusion). Stabilises the myocardial membrane and suppresses EADs.</li>
+          <li><strong>Correct electrolytes:</strong> target K⁺ ≥ 4.0–4.5 mEq/L and Mg²⁺ ≥ 1.0 mmol/L.</li>
+          <li><strong>Temporary pacing or isoproterenol</strong> if TdP is pause-dependent (bradycardia-induced) — increasing heart rate shortens the QT interval and prevents the long-short R-R sequence that triggers TdP. Use isoproterenol cautiously (not in congenital LQTS — adrenergic trigger).</li>
+          <li><strong>β-blockers</strong> are first-line for congenital LQTS-associated TdP (anti-adrenergic effect). Nadolol or propranolol preferred over atenolol/metoprolol.</li>
+          <li><strong>Do NOT use amiodarone or procainamide</strong> for TdP — both prolong the QT interval further and worsen TdP risk.</li>
+          <li><strong>Lidocaine</strong> (Class Ib) is safe and may help — shortens the QT interval.</li>
+        </ul>
+      </div>
+      <div class="qtc-section">
+        <div class="qtc-section-title"><i class="ti ti-dna"></i>When to consider congenital LQTS (cLQTS)</div>
+        <ul class="edu-list">
+          <li>QTc does not normalise after removing all offending drugs and correcting electrolytes.</li>
+          <li>Unexplained syncope especially with exercise, swimming (LQT1), or sudden loud noises/startle (LQT2).</li>
+          <li>Family history of unexplained sudden death < 30 years, unexplained drownings, or seizures refractory to anticonvulsants.</li>
+          <li>Up to <strong>one-third of cLQTS patients</strong> have a normal resting QTc ("concealed QT prolongation") — a normal QTc does not rule out cLQTS if clinical suspicion is present.</li>
+          <li>Refer to an inherited arrhythmia or cardiogenetics clinic: <a href="https://www.heartsinrhythm.ca" target="_blank" style="color:var(--blue)">heartsinrhythm.ca</a> (Canada) or <a href="https://www.sads.org" target="_blank" style="color:var(--blue)">sads.org</a> (international).</li>
+        </ul>
+      </div>
+      <div class="qtc-section">
+        <div class="qtc-section-title"><i class="ti ti-notes"></i>Pharmacist action checklist</div>
+        <ul class="edu-list">
+          <li>Calculate Tisdale score on admission for cardiac care unit patients.</li>
+          <li>Flag any QTc-prolonging drug order in a moderate- or high-risk patient — suggest safer alternative and notify prescriber.</li>
+          <li>Review electrolytes (K⁺, Mg²⁺) regularly; more frequently with diuretics or acute illness.</li>
+          <li>Dose-reduce renally cleared QTc drugs (ciprofloxacin, sotalol, fluconazole, many antiarrhythmics) when eGFR is reduced.</li>
+          <li>Educate patients with known LQTS: carry medication list, alert all providers, check new drugs at crediblemeds.org before filling.</li>
+          <li>For cLQTS: avoid drug initiation without cardiologist review. Nadolol is preferred β-blocker — do not substitute with metoprolol or atenolol.</li>
+        </ul>
+      </div>
+      <div class="disclaimer" style="margin-top:1rem">Educational use only. Clinical decisions require individual patient assessment. Sources: Davies et al., CCS 2023 Clinical Practice Update, Can J Cardiol 39:1285–1301 · Tisdale et al., Circ Cardiovasc Qual Outcomes 2013;6:479–487 · crediblemeds.org for current drug risk classification.</div>
+    </div>
+  </div>`;
+}
+
+render();
+</script>
+</body>
+</html>
